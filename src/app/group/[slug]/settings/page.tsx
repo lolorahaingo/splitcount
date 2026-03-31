@@ -19,6 +19,8 @@ export default function SettingsPage({
   const [members, setMembers] = useState<Member[]>([]);
   const [editingMember, setEditingMember] = useState<string | null>(null);
   const [editName, setEditName] = useState("");
+  const [newMemberName, setNewMemberName] = useState("");
+  const [addingMember, setAddingMember] = useState(false);
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
@@ -96,7 +98,79 @@ export default function SettingsPage({
 
       {/* Members */}
       <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-5">
-        <h2 className="text-sm font-medium text-gray-700 mb-3">Membres</h2>
+        <div className="flex items-center justify-between mb-3">
+          <h2 className="text-sm font-medium text-gray-700">Membres</h2>
+          {!addingMember && (
+            <button
+              onClick={() => setAddingMember(true)}
+              className="text-sm text-blue-600 hover:text-blue-700"
+            >
+              + Ajouter
+            </button>
+          )}
+        </div>
+
+        {addingMember && (
+          <div className="flex gap-2 mb-3">
+            <input
+              type="text"
+              value={newMemberName}
+              onChange={(e) => setNewMemberName(e.target.value)}
+              placeholder="Nom du nouveau membre"
+              className="flex-1 px-3 py-2 rounded-xl border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none text-gray-900 text-sm"
+              autoFocus
+              onKeyDown={async (e) => {
+                if (e.key === "Enter") {
+                  if (!newMemberName.trim()) return;
+                  const res = await fetch(`/api/groups/${slug}/members`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ name: newMemberName }),
+                  });
+                  if (res.ok) {
+                    const member = await res.json();
+                    setMembers((prev) => [...prev, member]);
+                    setNewMemberName("");
+                    setAddingMember(false);
+                  }
+                }
+                if (e.key === "Escape") {
+                  setAddingMember(false);
+                  setNewMemberName("");
+                }
+              }}
+            />
+            <button
+              onClick={async () => {
+                if (!newMemberName.trim()) return;
+                const res = await fetch(`/api/groups/${slug}/members`, {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({ name: newMemberName }),
+                });
+                if (res.ok) {
+                  const member = await res.json();
+                  setMembers((prev) => [...prev, member]);
+                  setNewMemberName("");
+                  setAddingMember(false);
+                }
+              }}
+              className="px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-sm"
+            >
+              OK
+            </button>
+            <button
+              onClick={() => {
+                setAddingMember(false);
+                setNewMemberName("");
+              }}
+              className="px-3 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl text-sm"
+            >
+              Annuler
+            </button>
+          </div>
+        )}
+
         <div className="space-y-2">
           {members.map((m) => (
             <div key={m.id}>
