@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { db } from "@/db";
 import { groups, members, expenses, expenseShares } from "@/db/schema";
 import { eq, desc } from "drizzle-orm";
+import { sanitizeString } from "@/lib/validation";
 
 export async function GET(
   _request: Request,
@@ -50,10 +51,15 @@ export async function PATCH(
   { params }: { params: Promise<{ slug: string }> }
 ) {
   const { slug } = await params;
-  const { name } = await request.json();
 
-  if (!name?.trim()) {
-    return NextResponse.json({ error: "Le nom est requis" }, { status: 400 });
+  const body = await request.json().catch(() => null);
+  if (!body) {
+    return NextResponse.json({ error: "Corps invalide" }, { status: 400 });
+  }
+
+  const name = sanitizeString(body.name, 100);
+  if (!name) {
+    return NextResponse.json({ error: "Le nom est requis (max 100 caractères)" }, { status: 400 });
   }
 
   const group = await db.query.groups.findFirst({
@@ -66,7 +72,7 @@ export async function PATCH(
 
   const [updated] = await db
     .update(groups)
-    .set({ name: name.trim() })
+    .set({ name })
     .where(eq(groups.id, group.id))
     .returning();
 

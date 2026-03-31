@@ -1,13 +1,35 @@
 import { NextResponse } from "next/server";
 import { db } from "@/db";
-import { expenses, expenseShares } from "@/db/schema";
-import { eq } from "drizzle-orm";
+import { groups, members, expenses, expenseShares } from "@/db/schema";
+import { eq, and } from "drizzle-orm";
+import { sanitizeString, isValidAmount, isValidUUID } from "@/lib/validation";
+
+async function getExpenseInGroup(slug: string, expenseId: string) {
+  if (!isValidUUID(expenseId)) return null;
+
+  const group = await db.query.groups.findFirst({
+    where: eq(groups.slug, slug),
+  });
+  if (!group) return null;
+
+  const [expense] = await db
+    .select()
+    .from(expenses)
+    .where(and(eq(expenses.id, expenseId), eq(expenses.groupId, group.id)));
+
+  return expense ? { group, expense } : null;
+}
 
 export async function DELETE(
   _request: Request,
   { params }: { params: Promise<{ slug: string; expenseId: string }> }
 ) {
-  const { expenseId } = await params;
+  const { slug, expenseId } = await params;
+
+  const result = await getExpenseInGroup(slug, expenseId);
+  if (!result) {
+    return NextResponse.json({ error: "Dépense introuvable" }, { status: 404 });
+  }
 
   await db.delete(expenseShares).where(eq(expenseShares.expenseId, expenseId));
   await db.delete(expenses).where(eq(expenses.id, expenseId));
@@ -19,26 +41,70 @@ export async function PUT(
   request: Request,
   { params }: { params: Promise<{ slug: string; expenseId: string }> }
 ) {
-  const { expenseId } = await params;
-  const { title, amount, paidBy, shares } = await request.json();
+  const { slug, expenseId } = await params;
+
+  const result = await getExpenseInGroup(slug, expenseId);
+  if (!result) {
+    return NextResponse.json({ error: "Dépense introuvable" }, { status: 404 });
+  }
+
+  const body = await request.json().catch(() => null);
+  if (!body) {
+    return NextResponse.json({ error: "Corps invalide" }, { status: 400 });
+  }
+
+  const title = sanitizeString(body.title, 200);
+  if (!title) {
+    return NextResponse.json({ error: "Titre requis" }, { status: 400 });
+  }
+
+  if (!isValidAmount(body.amount) || !isValidUUID(body.paidBy)) {
+    return NextResponse.json({ error: "Données invalides" }, { status: 400 });
+  }
+
+  if (!Array.isArray(body.shares) || body.shares.length === 0 || body.shares.length > 50) {
+    return NextResponse.json({ error: "Partage invalide" }, { status: 400 });
+  }
+
+  for (const s of body.shares) {
+    if (!isValidUUID(s.memberId) || !isValidAmount(s.amount)) {
+      return NextResponse.json({ error: "Données de partage invalides" }, { status: 400 });
+    }
+  }
+
+  // Verify members belong to this group
+  const groupMembers = await db
+    .select()
+    .from(members)
+    .where(eq(members.groupId, result.group.id));
+  const memberIds = new Set(groupMembers.map((m) => m.id));
+
+  if (!memberIds.has(body.paidBy)) {
+    return NextResponse.json({ error: "Payeur invalide" }, { status: 400 });
+  }
+
+  for (const s of body.shares) {
+    if (!memberIds.has(s.memberId)) {
+      return NextResponse.json({ error: "Membre du partage invalide" }, { status: 400 });
+    }
+  }
 
   await db
     .update(expenses)
     .set({
-      title: title.trim(),
-      amount: String(amount),
-      paidBy,
+      title,
+      amount: String(Number(body.amount)),
+      paidBy: body.paidBy,
       updatedAt: new Date(),
     })
     .where(eq(expenses.id, expenseId));
 
-  // Replace shares
   await db.delete(expenseShares).where(eq(expenseShares.expenseId, expenseId));
   await db.insert(expenseShares).values(
-    shares.map((s: { memberId: string; amount: number }) => ({
+    body.shares.map((s: { memberId: string; amount: number }) => ({
       expenseId,
       memberId: s.memberId,
-      amount: String(s.amount),
+      amount: String(Number(s.amount)),
     }))
   );
 

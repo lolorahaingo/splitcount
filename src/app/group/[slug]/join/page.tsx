@@ -51,14 +51,14 @@ export default function JoinPage({
     if (res.ok) {
       const member = await res.json();
       // Save member ID in cookie (30 days)
-      document.cookie = `splitcount_member_${slug}=${member.id}; path=/; max-age=${30 * 24 * 60 * 60}`;
+      document.cookie = `splitcount_member_${slug}=${member.id}; path=/; max-age=${30 * 24 * 60 * 60}; SameSite=Lax; Secure`;
       router.push(`/group/${slug}`);
     }
     setLoading(false);
   }
 
   function handleSelectExisting(memberId: string) {
-    document.cookie = `splitcount_member_${slug}=${memberId}; path=/; max-age=${30 * 24 * 60 * 60}`;
+    document.cookie = `splitcount_member_${slug}=${memberId}; path=/; max-age=${30 * 24 * 60 * 60}; SameSite=Lax; Secure`;
     router.push(`/group/${slug}`);
   }
 
