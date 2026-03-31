@@ -51,6 +51,7 @@ export default function GroupPage({
   const [balances, setBalances] = useState<MemberBalance[]>([]);
   const [settlements, setSettlements] = useState<Settlement[]>([]);
   const [copied, setCopied] = useState(false);
+  const [showSwitcher, setShowSwitcher] = useState(false);
 
   const loadGroup = useCallback(async () => {
     const res = await fetch(`/api/groups/${slug}`);
@@ -120,12 +121,40 @@ export default function GroupPage({
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">{group.name}</h1>
-          <p className="text-sm text-gray-500">
-            Connecté en tant que{" "}
-            <span className="font-medium text-gray-700">
-              {currentMember?.name}
-            </span>
-          </p>
+          <div className="relative">
+            <button
+              onClick={() => setShowSwitcher(!showSwitcher)}
+              className="text-sm text-gray-500 hover:text-blue-600 transition-colors text-left"
+            >
+              Connecté en tant que{" "}
+              <span className="font-medium text-gray-700 underline decoration-dotted">
+                {currentMember?.name}
+              </span>
+              {" "}&#9662;
+            </button>
+            {showSwitcher && (
+              <div className="absolute top-8 left-0 bg-white rounded-xl shadow-lg border border-gray-200 py-2 z-10 min-w-48">
+                {group.members.map((m) => (
+                  <button
+                    key={m.id}
+                    onClick={() => {
+                      document.cookie = `splitcount_member_${slug}=${m.id}; path=/; max-age=${30 * 24 * 60 * 60}; SameSite=Lax; Secure`;
+                      setCurrentMemberId(m.id);
+                      setShowSwitcher(false);
+                    }}
+                    className={`w-full text-left px-4 py-2 text-sm hover:bg-gray-50 ${
+                      m.id === currentMemberId
+                        ? "text-blue-600 font-medium"
+                        : "text-gray-700"
+                    }`}
+                  >
+                    {m.name}
+                    {m.id === currentMemberId && " (vous)"}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
         <div className="flex gap-2">
           <Link
