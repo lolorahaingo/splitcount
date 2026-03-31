@@ -44,3 +44,31 @@ export async function GET(
     expenses: expensesWithShares,
   });
 }
+
+export async function PATCH(
+  request: Request,
+  { params }: { params: Promise<{ slug: string }> }
+) {
+  const { slug } = await params;
+  const { name } = await request.json();
+
+  if (!name?.trim()) {
+    return NextResponse.json({ error: "Le nom est requis" }, { status: 400 });
+  }
+
+  const group = await db.query.groups.findFirst({
+    where: eq(groups.slug, slug),
+  });
+
+  if (!group) {
+    return NextResponse.json({ error: "Groupe introuvable" }, { status: 404 });
+  }
+
+  const [updated] = await db
+    .update(groups)
+    .set({ name: name.trim() })
+    .where(eq(groups.id, group.id))
+    .returning();
+
+  return NextResponse.json(updated);
+}

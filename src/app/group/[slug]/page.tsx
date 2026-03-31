@@ -127,12 +127,20 @@ export default function GroupPage({
             </span>
           </p>
         </div>
-        <button
-          onClick={handleCopyLink}
-          className="text-sm px-3 py-2 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors text-gray-700"
-        >
-          {copied ? "Copié !" : "Inviter"}
-        </button>
+        <div className="flex gap-2">
+          <Link
+            href={`/group/${slug}/settings`}
+            className="text-sm px-3 py-2 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors text-gray-700"
+          >
+            Paramètres
+          </Link>
+          <button
+            onClick={handleCopyLink}
+            className="text-sm px-3 py-2 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors text-gray-700"
+          >
+            {copied ? "Copié !" : "Inviter"}
+          </button>
+        </div>
       </div>
 
       {/* Summary card */}
