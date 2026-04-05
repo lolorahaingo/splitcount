@@ -15,7 +15,8 @@ export interface Settlement {
 export function calculateBalances(
   members: { id: string; name: string }[],
   expenses: {
-    paidBy: string;
+    paidBy: string; // legacy fallback
+    payers: { memberId: string; amount: number }[];
     shares: { memberId: string; amount: number }[];
   }[]
 ): MemberBalance[] {
@@ -26,18 +27,23 @@ export function calculateBalances(
   }
 
   for (const expense of expenses) {
-    // The payer gets credited for paying
-    for (const share of expense.shares) {
-      const amount = Number(share.amount);
-      // Payer is owed this share amount
+    // Credit each payer for what they paid
+    const payers = expense.payers.length > 0
+      ? expense.payers
+      : [{ memberId: expense.paidBy, amount: expense.shares.reduce((s, sh) => s + sh.amount, 0) }];
+
+    for (const payer of payers) {
       balanceMap.set(
-        expense.paidBy,
-        (balanceMap.get(expense.paidBy) || 0) + amount
+        payer.memberId,
+        (balanceMap.get(payer.memberId) || 0) + payer.amount
       );
-      // This member owes this share amount
+    }
+
+    // Debit each person for their share
+    for (const share of expense.shares) {
       balanceMap.set(
         share.memberId,
-        (balanceMap.get(share.memberId) || 0) - amount
+        (balanceMap.get(share.memberId) || 0) - share.amount
       );
     }
   }
@@ -50,7 +56,6 @@ export function calculateBalances(
 }
 
 export function simplifyDebts(balances: MemberBalance[]): Settlement[] {
-  // Separate into debtors (negative balance) and creditors (positive balance)
   const debtors = balances
     .filter((b) => b.balance < -0.01)
     .map((b) => ({ ...b, balance: Math.abs(b.balance) }))

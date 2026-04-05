@@ -28,6 +28,7 @@ interface Expense {
   paidBy: string;
   createdAt: string;
   shares: ExpenseShare[];
+  payers: ExpenseShare[];
 }
 
 interface GroupData {
@@ -61,7 +62,11 @@ export default function GroupPage({
 
     const expensesForCalc = data.expenses.map((e) => ({
       paidBy: e.paidBy,
-      shares: e.shares.map((s) => ({
+      payers: (e.payers || []).map((p: ExpenseShare) => ({
+        memberId: p.memberId,
+        amount: Number(p.amount),
+      })),
+      shares: e.shares.map((s: ExpenseShare) => ({
         memberId: s.memberId,
         amount: Number(s.amount),
       })),
@@ -256,7 +261,10 @@ export default function GroupPage({
         ) : (
           <div className="space-y-3">
             {group.expenses.slice(0, 5).map((expense) => {
-              const payer = group.members.find((m) => m.id === expense.paidBy);
+              const payerNames = (expense.payers?.length > 0 ? expense.payers : [{ memberId: expense.paidBy }])
+                .map((p) => group.members.find((m) => m.id === p.memberId)?.name)
+                .filter(Boolean)
+                .join(", ");
               return (
                 <div
                   key={expense.id}
@@ -265,7 +273,7 @@ export default function GroupPage({
                   <div>
                     <p className="text-gray-900 font-medium">{expense.title}</p>
                     <p className="text-xs text-gray-500">
-                      Payé par {payer?.name} &middot;{" "}
+                      Payé par {payerNames} &middot;{" "}
                       {new Date(expense.createdAt).toLocaleDateString("fr-FR")}
                     </p>
                   </div>

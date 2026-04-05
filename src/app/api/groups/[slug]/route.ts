@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { db } from "@/db";
-import { groups, members, expenses, expenseShares } from "@/db/schema";
+import { groups, members, expenses, expenseShares, expensePayers } from "@/db/schema";
 import { eq, desc } from "drizzle-orm";
 import { sanitizeString } from "@/lib/validation";
 
@@ -31,11 +31,11 @@ export async function GET(
 
   const expensesWithShares = await Promise.all(
     groupExpenses.map(async (expense) => {
-      const shares = await db
-        .select()
-        .from(expenseShares)
-        .where(eq(expenseShares.expenseId, expense.id));
-      return { ...expense, shares };
+      const [shares, payers] = await Promise.all([
+        db.select().from(expenseShares).where(eq(expenseShares.expenseId, expense.id)),
+        db.select().from(expensePayers).where(eq(expensePayers.expenseId, expense.id)),
+      ]);
+      return { ...expense, shares, payers };
     })
   );
 

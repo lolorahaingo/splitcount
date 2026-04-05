@@ -41,3 +41,14 @@ export const expenseShares = pgTable("expense_shares", {
     .notNull(),
   amount: numeric("amount", { precision: 10, scale: 2 }).notNull(),
 });
+
+export const expensePayers = pgTable("expense_payers", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  expenseId: uuid("expense_id")
+    .references(() => expenses.id, { onDelete: "cascade" })
+    .notNull(),
+  memberId: uuid("member_id")
+    .references(() => members.id)
+    .notNull(),
+  amount: numeric("amount", { precision: 10, scale: 2 }).notNull(),
+});

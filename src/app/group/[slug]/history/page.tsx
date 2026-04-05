@@ -16,6 +16,7 @@ interface Expense {
   paidBy: string;
   createdAt: string;
   shares: { memberId: string; amount: string }[];
+  payers: { memberId: string; amount: string }[];
 }
 
 export default function HistoryPage({
@@ -78,10 +79,14 @@ export default function HistoryPage({
       ) : (
         <div className="space-y-3">
           {expenses.map((expense) => {
-            const payer = getMemberName(expense.paidBy);
+            const activePayers = expense.payers?.length > 0
+              ? expense.payers
+              : [{ memberId: expense.paidBy, amount: expense.amount }];
+            const payerNames = activePayers.map((p) => getMemberName(p.memberId)).join(", ");
             const involvedMembers = expense.shares
               .map((s) => getMemberName(s.memberId))
               .join(", ");
+            const isCurrentPayer = activePayers.some((p) => p.memberId === currentMemberId);
 
             return (
               <div
@@ -105,7 +110,7 @@ export default function HistoryPage({
                     <span className="text-lg font-bold text-gray-900">
                       {formatCurrency(Number(expense.amount), currency)}
                     </span>
-                    {expense.paidBy === currentMemberId && (
+                    {isCurrentPayer && (
                       <button
                         onClick={() => handleDelete(expense.id)}
                         className="text-gray-400 hover:text-red-500"
@@ -117,17 +122,24 @@ export default function HistoryPage({
                 </div>
                 <div className="text-sm text-gray-600">
                   <p>
-                    Payé par <span className="font-medium">{payer}</span>
+                    Payé par <span className="font-medium">{payerNames}</span>
                   </p>
+                  {activePayers.length > 1 && (
+                    <div className="mt-1 space-y-0.5">
+                      {activePayers.map((p) => (
+                        <div key={p.memberId} className="flex justify-between text-xs text-gray-400">
+                          <span>{getMemberName(p.memberId)}</span>
+                          <span>{formatCurrency(Number(p.amount), currency)}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                   <p className="text-xs text-gray-400 mt-1">
                     Partagé entre : {involvedMembers}
                   </p>
-                  <div className="mt-2 space-y-1">
+                  <div className="mt-1 space-y-0.5">
                     {expense.shares.map((s) => (
-                      <div
-                        key={s.memberId}
-                        className="flex justify-between text-xs text-gray-500"
-                      >
+                      <div key={s.memberId} className="flex justify-between text-xs text-gray-500">
                         <span>{getMemberName(s.memberId)}</span>
                         <span>{formatCurrency(Number(s.amount), currency)}</span>
                       </div>
